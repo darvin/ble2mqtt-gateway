@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /**
  * Created by darvin on 4/17/16.
  */
@@ -9,8 +10,7 @@ var client  = null;
 
 
 var topics = [
-    "/c72d553617d44c3db48653ae9a880732/ffe0/ffe1",
-    "/c72d553617d44c3db48653ae9a880732/ffe4/ffe7",
+    "/bba0560c1107/ffe0/ffe1",
 ];
 
 function topicsToTree() {
@@ -54,16 +54,21 @@ function connectToPeripheral(peripheral) {
             if (error) { console.error("BLE ERROR: "+error); return; }
 
             for (var i in services) {
-                console.log('SERVICE:  ' + i + ' uuid: ' + services[i].uuid);
+                console.log('SERVICE discovered:  ' + i + ' uuid: ' + services[i].uuid);
                 if (services[i].uuid in TOPICS_TREE[peripheral.uuid]) {
-                    services[i].discoverCharacteristics(null, function(error, characteristics){
+                    console.log('SERVICE CONNECTED:  ' + i + ' uuid: ' + services[i].uuid);
+		(function(service) {
+		    service.discoverCharacteristics(null, function(error, characteristics){
                         if (error) { console.error("BLE ERROR: "+error); return; }
 
                         for (var i in characteristics) {
-                            if (characteristics[i].uuid in TOPICS_TREE[peripheral.uuid][services[i].uuid]) {
+			    console.log('CHAR discovered: ' + i + ' uuid: ' + characteristics[i].uuid);
+                            console.log (TOPICS_TREE, peripheral.uuid, service.uuid);
+			
+				if (characteristics[i].uuid in TOPICS_TREE[peripheral.uuid][service.uuid]) {
 
-                                console.log('CHAR: ' + i + ' uuid: ' + characteristics[i].uuid);
-                                var topicName = TOPICS_TREE[peripheral.uuid][services[i].uuid][characteristics[i].uuid].topicName;
+                                console.log('CHAR CONNECTED: ' + i + ' uuid: ' + characteristics[i].uuid);
+                                var topicName = TOPICS_TREE[peripheral.uuid][service.uuid][characteristics[i].uuid].topicName;
 
                                 client.subscribe(topicName);
                                 CHARACTERISTICS_FOR_TOPICS[topicName] = characteristics[i];
@@ -72,6 +77,7 @@ function connectToPeripheral(peripheral) {
                         }
 
                     });
+})(services[i]);
                 }
 
             }
@@ -94,8 +100,8 @@ function  scanDevices () {
 
 
     noble.on('discover', function(peripheral) {
-        //console.log('DEVICE ' + peripheral.advertisement.localName + ' id: '+peripheral.uuid);
-        //console.log();
+        console.log('DEVICE ' + peripheral.advertisement.localName + ' id: '+peripheral.uuid);
+        console.log();
 
         if (peripheral.uuid in TOPICS_TREE) {
             connectToPeripheral(peripheral);
@@ -115,6 +121,7 @@ function startMQTTClient() {
 
     });
     client.on('connect', function () {
+console.log("mqtt connected");
         scanDevices();
 
     });
@@ -123,9 +130,15 @@ function startMQTTClient() {
         // message is Buffer
         var msgString = message.toString();
         var msgBuffer = new Buffer(msgString, "hex");
-        console.log("WRITE: "+topic+"  "+msgBuffer);
+        console.log("WRITE: "+topic+"  "+msgBuffer.toString('hex') + " to "+CHARACTERISTICS_FOR_TOPICS[topic]);
 
-        CHARACTERISTICS_FOR_TOPICS[topic].write(msgBuffer);
+        CHARACTERISTICS_FOR_TOPICS[topic].write(msgBuffer, function(error) {
+	if (error) {
+console.log("ERROR: "+error);
+} else {
+console.log("WRITTEN!");
+}
+});
     });
 
     client.on("error", function(error) {
