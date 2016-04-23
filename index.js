@@ -2,6 +2,7 @@
 /**
  * Created by darvin on 4/17/16.
  */
+var argv = require('yargs').number("delay").argv;
 
 var BLEManager = require("./lib/blemanager");
 var MQTTManager = require("./lib/mqttmanager");
@@ -52,5 +53,6 @@ function start () {
 
 
 if (require.main === module) {
-    start();
+
+    setTimeout(start,argv.delay || 0);
 }
