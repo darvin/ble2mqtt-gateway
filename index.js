@@ -32,6 +32,10 @@ function start () {
         mqtt.readUpdated(blePath, data);
     });
 
+    ble.on('ibeaconFound', function(uuid, major, minor, accuracy){
+       mqtt.postBeacon(uuid, major, minor, accuracy);
+    });
+
     mqtt.connect({
         host:"localhost",
         qos: 0,
